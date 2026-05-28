@@ -33,17 +33,25 @@ wheels = [
 ]
 
 [[package]]
+name = "nuitka"
+version = "4.1.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d2/a6/8cf2a663402c057005f0328bdc691a653fa14848248358ef051f86a21880/nuitka-4.1.1.tar.gz", hash = "sha256:777e2c84d6b168f9bf78c3242b3779958865ae5815d26c76170eb830995368cc", size = 4558061, upload-time = "2026-05-19T08:44:16.716Z" }
+
+[[package]]
 name = "strevenue"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "imgui-bundle" },
+    { name = "nuitka" },
     { name = "xlrd" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "imgui-bundle", specifier = ">=1.92.801" },
+    { name = "nuitka", specifier = ">=4.1.1" },
     { name = "xlrd", specifier = ">=2.0.2" },
 ]
 
