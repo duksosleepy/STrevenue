@@ -126,8 +126,8 @@ def do_export(file_path: str, export_date: date, cfg: dict) -> tuple[bool, str]:
         ls_h         = len(nd)
         sohd         = sum(r["ckkm"] for r in nd)
         sum_tong     = sum(r["tong"] for r in nd)
-        giamgia      = (sum_tong - sohd) / 1.1
-        tongdoanhthu = giamgia / 10.0
+        giamgia      = sum_tong - sohd
+        tongdoanhthu = giamgia / 8.0
         gio_out      = sum(r["the"] for r in nd)
         tm_out       = sum(r["tm"]  for r in nd)
         lines.append(sep.join([
