@@ -1,4 +1,8 @@
 1. git clone https://github.com/duksosleepy/STrevenue
-2. git pull origin main
-3. $env:imgui_bundle_asset_path = uv run python -c "import imgui_bundle, os; print(os.path.join(os.path.dirname(imgui_bundle.__file__), 'assets'))"
-4. uv run python -m nuitka --standalone --msvc=latest --mode=onefile --include-package=imgui_bundle --include-package-data=imgui_bundle --include-module=importlib.util --include-data-dir="$env:imgui_bundle_asset_path=imgui_bundle/assets" --noinclude-pytest-mode=nofollow --enable-plugin=no-qt -o your_app_compiled main.py
+
+2. Mở PowerShell Developer for VS
+3. D:
+4. cd STrevenue
+5. git pull origin main
+6. $env:imgui_bundle_asset_path = uv run python -c "import imgui_bundle, os; print(os.path.join(os.path.dirname(imgui_bundle.__file__), 'assets'))"
+7. uv run python -m nuitka --msvc=latest --onefile --windows-console-mode=disable --windows-icon-from-ico=logo.png --include-package=imgui_bundle --include-package-data=imgui_bundle --include-module=importlib.util --include-data-dir="$env:imgui_bundle_asset_path=imgui_bundle/assets" --noinclude-pytest-mode=nofollow --enable-plugin=no-qt -o app main.py
