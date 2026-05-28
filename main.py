@@ -1,10 +1,10 @@
 import calendar
 import configparser
 import re
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 
-import xlrd
+import pandas as pd
 from imgui_bundle import hello_imgui, icons_fontawesome_6 as fa, imgui, portable_file_dialogs
 
 CONFIG_PATH = Path(__file__).parent / "Config.ini"
@@ -43,52 +43,54 @@ def _parse_gio(val) -> str:
         return "12:00:00"
 
 
-def parse_xls(file_path: str) -> list[dict]:
-    wb = xlrd.open_workbook(file_path)
-    ws = wb.sheet_by_index(0)
+def _to_float(val) -> float:
+    try:
+        v = float(val)
+        return 0.0 if pd.isna(v) else v
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def parse_excel(file_path: str) -> list[dict]:
+    df = pd.read_excel(
+        file_path,
+        sheet_name=0,
+        header=None,
+        skiprows=5,
+        dtype=str,
+        engine="calamine",
+    )
     rows = []
-    for i in range(5, ws.nrows):
-        row = ws.row_values(i)
+    for _, row in df.iterrows():
+        def cell(i, _row=row):
+            v = _row.iloc[i] if i < len(_row) else None
+            return "" if v is None or (isinstance(v, float) and pd.isna(v)) else str(v).strip()
+
+        raw_date = cell(3)
         try:
-            dt = datetime.strptime(str(row[3]).strip(), "%d/%m/%Y")
+            dt = pd.to_datetime(raw_date, dayfirst=False).date()
         except Exception:
-            dt = datetime.today()
-        try:
-            the = float(row[12]) if row[12] != '' else 0.0
-        except (ValueError, TypeError):
-            the = 0.0
-        try:
-            tm = float(row[13]) if row[13] != '' else 0.0
-        except (ValueError, TypeError):
-            tm = 0.0
-        try:
-            tong = float(row[17]) if row[17] != '' else 0.0
-        except (ValueError, TypeError):
-            tong = 0.0
-        try:
-            ckkm = float(row[18]) if row[18] != '' else 0.0
-        except (ValueError, TypeError):
-            ckkm = 0.0
-        gio = _parse_gio(row[20] if len(row) > 20 else '')
+            dt = date.today()
+
         rows.append({
-            "date": dt.date() if hasattr(dt, 'date') else dt,
-            "gio":  gio,
-            "tong": tong,
-            "ckkm": ckkm,
-            "the":  the,
-            "tm":   tm,
+            "date": dt,
+            "gio":  _parse_gio(cell(20)),
+            "tong": _to_float(cell(17)),
+            "ckkm": _to_float(cell(18)),
+            "the":  _to_float(cell(12)),
+            "tm":   _to_float(cell(13)),
         })
     return rows
 
 
 def do_export(file_path: str, export_date: date, cfg: dict) -> tuple[bool, str]:
     try:
-        rows = parse_xls(file_path)
+        rows = parse_excel(file_path)
     except Exception as e:
-        return False, f"Cannot read file:\n{e}"
+        return False, f"Không thể đọc file:\n{e}"
 
     if not rows:
-        return False, "File does not contain any data rows."
+        return False, "File không có dữ liệu."
 
     day_rows = [r for r in rows if r["date"] == export_date]
 
@@ -114,7 +116,7 @@ def do_export(file_path: str, export_date: date, cfg: dict) -> tuple[bool, str]:
         if out_path.exists():
             out_path.unlink()
     except Exception as e:
-        return False, f"Cannot prepare output directory:\n{e}"
+        return False, f"Không thể tạo thư mục xuất:\n{e}"
 
     lines = []
     for hour in range(24):
@@ -139,13 +141,13 @@ def do_export(file_path: str, export_date: date, cfg: dict) -> tuple[bool, str]:
         with open(out_path, "w", encoding="utf-8-sig") as f:
             f.write("\n".join(lines) + "\n")
     except Exception as e:
-        return False, f"Cannot write output file:\n{e}"
+        return False, f"Không thể ghi file xuất:\n{e}"
 
     cfg["stt"] = stt
     save_stt(stt)
 
     total_tx = len(day_rows)
-    return True, f"Da xuat du lieu thanh cong !\n\n{total_tx} giao dich -> {out_path}"
+    return True, f"Đã xuất dữ liệu thành công!\n\n{total_tx} giao dịch → {out_path}"
 
 
 MONTH_NAMES = [
@@ -255,9 +257,9 @@ class AppState:
     def open_file_browser(self):
         path_hint = str(Path(self.selected_file).parent) if self.selected_file else "."
         self.file_dialog = portable_file_dialogs.open_file(
-            "Chon file doanh thu",
+            "Chọn file doanh thu",
             path_hint,
-            ["Excel files (*.xls *.xlsx)", "*.xls *.xlsx", "All files (*.*)", "*.*"],
+            ["Tệp Excel (*.xls *.xlsx)", "*.xls *.xlsx", "Tất cả tệp (*.*)", "*.*"],
         )
 
     def poll_file_dialog(self):
@@ -298,7 +300,7 @@ class AppState:
 
     def do_export(self):
         if not self.selected_file:
-            self.popup_msg = "Vui long chon file truoc."
+            self.popup_msg = "Vui lòng chọn file trước."
             self.show_error_popup = True
             return
         ok, msg = do_export(self.selected_file, self.export_date, self.cfg)
@@ -336,11 +338,11 @@ def gui():
         | imgui.WindowFlags_.no_resize
         | imgui.WindowFlags_.no_move
     )
-    imgui.begin("XUAT FILE", None, flags)
+    imgui.begin("XUẤT FILE", None, flags)
 
     LABEL_COL = 90.0
 
-    imgui.text("Chon file")
+    imgui.text("Chọn file")
     imgui.same_line(LABEL_COL)
 
     avail = imgui.get_content_region_avail().x
@@ -351,7 +353,7 @@ def gui():
     if imgui.button("..."):
         _state.open_file_browser()
 
-    imgui.text("Ngay xuat")
+    imgui.text("Ngày xuất")
     imgui.same_line(LABEL_COL)
 
     date_label = f"{fa.ICON_FA_CALENDAR_DAYS}  {_state.export_date.strftime('%d/%m/%Y')}"
@@ -385,16 +387,16 @@ def gui():
     total_btn = btn_w * 2 + 20
     imgui.set_cursor_pos_x((WINDOW_W - total_btn) * 0.5)
 
-    if imgui.button("Xuat file", imgui.ImVec2(btn_w, 0)):
+    if imgui.button("Xuất file", imgui.ImVec2(btn_w, 0)):
         _state.do_export()
     imgui.same_line(spacing=20)
-    if imgui.button("Thoat", imgui.ImVec2(btn_w, 0)):
+    if imgui.button("Thoát", imgui.ImVec2(btn_w, 0)):
         hello_imgui.get_runner_params().app_shall_exit = True
 
     if _state.show_error_popup:
-        imgui.open_popup("Loi##err")
+        imgui.open_popup("Lỗi##err")
         _state.show_error_popup = False
-    if imgui.begin_popup_modal("Loi##err", None, imgui.WindowFlags_.always_auto_resize)[0]:
+    if imgui.begin_popup_modal("Lỗi##err", None, imgui.WindowFlags_.always_auto_resize)[0]:
         imgui.text_wrapped(_state.popup_msg)
         imgui.spacing()
         if imgui.button("OK", imgui.ImVec2(80, 0)):
@@ -402,9 +404,9 @@ def gui():
         imgui.end_popup()
 
     if _state.show_success_popup:
-        imgui.open_popup("Thanh cong##ok")
+        imgui.open_popup("Thành công##ok")
         _state.show_success_popup = False
-    if imgui.begin_popup_modal("Thanh cong##ok", None, imgui.WindowFlags_.always_auto_resize)[0]:
+    if imgui.begin_popup_modal("Thành công##ok", None, imgui.WindowFlags_.always_auto_resize)[0]:
         imgui.text_wrapped(_state.popup_msg)
         imgui.spacing()
         if imgui.button("OK", imgui.ImVec2(80, 0)):
@@ -419,7 +421,7 @@ def main():
     _state = AppState()
 
     runner_params = hello_imgui.RunnerParams()
-    runner_params.app_window_params.window_title = "XUAT FILE"
+    runner_params.app_window_params.window_title = "XUẤT FILE"
     runner_params.app_window_params.window_geometry.size = (WINDOW_W + 20, WINDOW_H + 40)
     runner_params.app_window_params.resizable = False
 
