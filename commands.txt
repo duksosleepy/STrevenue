@@ -1,0 +1,4 @@
+1. git clone https://github.com/duksosleepy/STrevenue
+2. git pull origin main
+3. $env:imgui_bundle_asset_path = uv run python -c "import imgui_bundle, os; print(os.path.join(os.path.dirname(imgui_bundle.__file__), 'assets'))"
+4. uv run python -m nuitka --standalone --include-package=imgui_bundle --include-package-data=imgui_bundle --include-module=importlib.util --include-data-dir="$env:imgui_bundle_asset_path=imgui_bundle/assets" --noinclude-pytest-mode=nofollow --enable-plugin=no-qt -o your_app_compiled main.py
