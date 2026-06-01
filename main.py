@@ -68,7 +68,7 @@ def parse_excel(file_path: str) -> list[dict]:
 
         raw_date = cell(3)
         try:
-            dt = pd.to_datetime(raw_date, dayfirst=False).date()
+            dt = pd.to_datetime(raw_date, dayfirst=True).date()
         except Exception:
             dt = date.today()
 
@@ -81,6 +81,18 @@ def parse_excel(file_path: str) -> list[dict]:
             "tm":   _to_float(cell(13)),
         })
     return rows
+
+
+def read_file_date(file_path: str) -> date | None:
+    """Đọc ngày từ nội dung file (cột ngày), trả về None nếu không đọc được."""
+    try:
+        rows = parse_excel(file_path)
+    except Exception:
+        return None
+    for r in rows:
+        if r["date"]:
+            return r["date"]
+    return None
 
 
 def do_export(file_path: str, export_date: date, cfg: dict) -> tuple[bool, str]:
@@ -267,7 +279,11 @@ class AppState:
             results = self.file_dialog.result()
             if results:
                 self.selected_file = results[0]
-                self._extract_date_from_filename(results[0])
+                file_date = read_file_date(results[0])
+                if file_date is not None:
+                    self._set_date(file_date)
+                else:
+                    self._extract_date_from_filename(results[0])
             self.file_dialog = None
 
     def _extract_date_from_filename(self, path: str):
